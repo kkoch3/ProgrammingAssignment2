@@ -1,0 +1,98 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+```{r results='hide', warning=FALSE, message=FALSE, echo=TRUE}
+library(reshape2)
+library(dplyr)
+library(ggplot2)
+
+#Read the data from the CSV file
+activity <- read.csv("activity.csv")
+#
+totalStepsByDate <- transform(xtabs(steps ~ date, data = activity))
+names(totalStepsByDate)[2] <- "steps"
+```
+
+
+## What is mean total number of steps taken per day?
+```{r}
+myHist <- hist(as.Date(as.character(activity$date), "%Y-%m-%d"), breaks = "days", freq = TRUE, format = "%Y-%m-%d", plot = FALSE)
+myHist$counts <- totalStepsByDate$steps
+plot(myHist, col = "blue", xlab = "Date", ylab = "Steps", main = "Total Steps Per Day")
+
+sprintf("Mean steps per day = %.2f", mean(totalStepsByDate$steps))
+sprintf("Median steps per day = %1.0f", median(totalStepsByDate$steps))
+```
+
+
+## What is the average daily activity pattern?
+```{r}
+#plot(avgStepsByInterval$interval, avgStepsByInterval$steps, type = "l", xlab #= "Interval (hh:mm)", ylab = "Average Steps", main = "Steps per Interval")
+ggplot(activity, aes(x=interval, y=steps)) + stat_summary(fun.y="mean", geom="line")
+
+intervalMean <- tapply(activity$steps, activity$interval, mean, na.rm = TRUE)
+sprintf("5 minute interval with maximum # of steps = %s", names(intervalMean)[intervalMean==max(intervalMean)])
+```
+
+
+## Imputing missing values
+```{r}
+sprintf("Total NAs = %1.0f", sum(is.na(activity$steps)))
+
+```
+```{r}
+#Copy activity to activity2
+activity2 <- activity
+
+#Let's iterate through the data and replace the NAs with the average steps for that interval
+for (i in 1:nrow(activity2)){if (is.na(activity2[i,1])) activity2[i,1] = intervalMean[as.character(activity2[i,3])]}
+
+totalStepsByDate <- transform(xtabs(steps ~ date, data = activity2))
+names(totalStepsByDate)[2] <- "steps"
+
+myHist <- hist(as.Date(as.character(activity$date), "%Y-%m-%d"), breaks = "days", freq = TRUE, format = "%Y-%m-%d", plot = FALSE)
+myHist$counts <- totalStepsByDate$steps
+plot(myHist, col = "blue", xlab = "Date", ylab = "Steps", main = "Total Steps Per Day")
+
+sprintf("Mean steps per day = %.2f", mean(totalStepsByDate$steps))
+sprintf("Median steps per day = %1.0f", median(totalStepsByDate$steps))
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+ww <- function(x){
+        ifelse(weekdays(x) %in% c("Sunday","Saturday"),"Weekend","Weekday")
+}
+activity <- mutate(activity, wkday = ww(as.Date(activity$date)))
+
+
+#weekdayActivity <- activity[activity$wkday=="Weekday",]
+#weekendActivity <- activity[activity$wkday=="Weekend",]
+
+#Calculate the average by starting with the total steps by interval
+#avgStepsByIntervalWeekday <- transform(xtabs(steps ~ interval, data = #weekdayActivity))
+#names(avgStepsByIntervalWeekday)[2] <- "steps"
+#Divide by days to get the average
+#avgStepsByIntervalWeekday$steps <- avgStepsByIntervalWeekday$steps / #length(unique(activity$date))
+
+#Calculate the average by starting with the total steps by interval
+#avgStepsByIntervalWeekend <- transform(xtabs(steps ~ interval, data = #weekdayActivity))
+#names(avgStepsByIntervalWeekend)[2] <- "steps"
+#Divide by days to get the average
+#avgStepsByIntervalWeekend$steps <- avgStepsByIntervalWeekend$steps / #length(unique(activity$date))
+
+#par(mfrow=c(2,1))
+
+#plot(avgStepsByIntervalWeekend$interval, avgStepsByIntervalWeekend$steps, #type = "l", xlab = "Interval (hh:mm)", ylab = "Average Steps", main = #"Weekend")
+
+#plot(avgStepsByIntervalWeekday$interval, avgStepsByIntervalWeekday$steps, #type = "l", xlab = "Interval (hh:mm)", ylab = "Average Steps", main = #"Weekday")
+ggplot(activity, aes(x=interval, y=steps)) + stat_summary(fun.y="mean", geom="line") + facet_grid(wkday ~.)
+
+
+```
